@@ -1,0 +1,17 @@
+{
+  "name": "Klockkoll – lär dig klockan",
+  "short_name": "Klockkoll",
+  "description": "Lär dig klockan steg för steg.",
+  "lang": "sv",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FFF8EE",
+  "theme_color": "#2B7BD9",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
