@@ -1,5 +1,5 @@
-# Enkel lokal webbserver för att testa Klockkoll: http://localhost:8080
-param([int]$Port = 8080)
+# Enkel lokal webbserver för att testa Klockkoll: http://localhost:8765
+param([int]$Port = 8765)
 $root = $PSScriptRoot
 $types = @{
   '.html' = 'text/html; charset=utf-8'; '.css' = 'text/css; charset=utf-8'; '.js' = 'text/javascript; charset=utf-8'

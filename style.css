@@ -83,7 +83,10 @@ input, select { font: inherit; }
   background: var(--bg);
 }
 .topbar h1 { flex: 1; font-size: 1.2rem; margin: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.topbar-extra { min-width: 44px; text-align: right; }
+.topbar-extra { min-width: 44px; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.home { position: relative; }
+.home-sound { position: absolute; top: max(12px, env(safe-area-inset-top)); right: 16px; }
+body.muted .say-btn { display: none; }
 .star-count { font-weight: 900; }
 .pbar { flex: 1; display: flex; gap: 4px; }
 .pbar i { flex: 1; height: 10px; border-radius: 6px; background: var(--line); }

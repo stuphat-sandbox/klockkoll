@@ -18,8 +18,12 @@ if ('speechSynthesis' in window) {
 
 function canSpeak() { return 'speechSynthesis' in window; }
 
+function soundOn() {
+  return !(typeof db !== 'undefined' && db && db.settings && db.settings.sound === false);
+}
+
 function speak(text) {
-  if (!canSpeak()) return;
+  if (!canSpeak() || !soundOn()) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'sv-SE';

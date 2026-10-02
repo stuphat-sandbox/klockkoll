@@ -12,6 +12,7 @@ const DEFAULT_DAY = [
 ];
 
 const DEFAULT_SETTINGS = {
+  sound: true,       // allt ljud på/av (snabbknappen 🔊/🔇)
   autoSpeak: true,   // läs upp frågan automatiskt
   hints: true,       // visa tipsknapp för vuxna
   zones: 'auto',     // 'auto' | 'on' | 'off'

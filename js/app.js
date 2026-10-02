@@ -69,11 +69,76 @@ function confetti() {
   setTimeout(() => box.remove(), 2500);
 }
 
+// --- Ljud på/av ---
+function soundBtn() {
+  const on = db.settings.sound;
+  return `<button class="icon-btn sound-toggle" aria-pressed="${!on}" aria-label="${on ? 'Stäng av ljudet' : 'Slå på ljudet'}">${on ? '🔊' : '🔇'}</button>`;
+}
+
+function setSound(on) {
+  db.settings.sound = on;
+  saveDb();
+  if (!on) stopSpeaking();
+  document.body.classList.toggle('muted', !on);
+  document.querySelectorAll('.sound-toggle').forEach(b => {
+    b.textContent = on ? '🔊' : '🔇';
+    b.setAttribute('aria-pressed', String(!on));
+    b.setAttribute('aria-label', on ? 'Stäng av ljudet' : 'Slå på ljudet');
+  });
+  const s = document.getElementById('s-sound');
+  if (s) s.checked = on;
+}
+
+app.addEventListener('click', (e) => {
+  if (e.target.closest('.sound-toggle')) setSound(!db.settings.sound);
+});
+
+// --- Beröm och uppmuntran (varierat, samma fras kommer inte två gånger i rad) ---
+const PHRASES = {
+  right: [
+    'Rätt! 🎉', 'Helt rätt! ⭐', 'Precis så! 🙌', 'Klockrent! ⏰', 'Prick rätt! 🎯', 'Där satt den! 💥',
+    'Bra tänkt! 💡', 'Du tittade noga! 👀', 'Kanon! 🌟', 'Toppen! 🏆', 'Du har koll! 😎', 'Ja, exakt! ✨',
+    'Grymt! 🚀', 'Mitt i prick! 🎯', 'Klockkoll! ⏱️', 'Du kan det här! 💪', 'Jättebra! 🌈', 'Yes! 🎈',
+  ],
+  rightSet: ['Visarna står precis rätt! 🎯', 'Du ställde klockan helt rätt! ⏰', 'Perfekt inställt! ✨'],
+  rightRead: ['Du läste klockan rätt! 👀', 'Rätt avläst! ⭐'],
+  streak: {
+    3: ['Tre rätt i rad! 🔥', 'Tre i rad – du är på gång! 🔥'],
+    5: ['Fem rätt i rad! 🚀', 'Fem i rad – vilken koll! 🚀'],
+    7: ['Sju i rad! Du är en klockexpert! 🏆'],
+    10: ['Tio rätt i rad! Helt otroligt! 👑'],
+  },
+  wrong: [
+    'Nästan! Så här är det:', 'Inte riktigt – titta här:', 'Bra försök! Så här funkar det:',
+    'Den var klurig! Så här är det:', 'Ingen fara – nu lär vi oss:', 'Oj, nära! Kolla här:',
+    'Hoppsan! Så här blir det:', 'Bra att du testade! Titta här:',
+  ],
+  result3: ['Superbra!', 'Fantastiskt!', 'Du är en riktig klockexpert!', 'Wow, vilken koll du har!'],
+  result2: ['Bra jobbat!', 'Snyggt kämpat!', 'Det går framåt!', 'Du lär dig massor!'],
+  result1: ['Bra kämpat – övning ger färdighet!', 'Varje gång du övar blir du bättre!', 'Det var svåra – bra att du övade!', 'Skönt kämpat! Nästa gång går det ännu bättre.'],
+  placeRight: ['Bra! 👍', 'Fint! ⭐', 'Det kan du! ✅', 'Snyggt! 👌'],
+  placeWrong: ['Den här ska vi öva på! 💪', 'Den tar vi sen! 🙂', 'Bra att veta – den övar vi på! 💪'],
+  matchDone: ['Alla par hittade! 🎉', 'Alla par klara! 🧩', 'Du hittade alla! 🌟'],
+};
+const lastPhrase = {};
+
+function phrase(key, list = PHRASES[key]) {
+  const options = list.length > 1 ? list.filter(p => p !== lastPhrase[key]) : list;
+  const p = pick(options);
+  lastPhrase[key] = p;
+  return p;
+}
+
+// Text för uppläsning: utan emoji.
+function speakable(s) { return s.replace(/[^\p{L}\p{N}\s!?.,–-]/gu, '').trim(); }
+
+let streak = 0;
+
 function topbar(title, extra = '') {
   return `<header class="topbar">
     <button class="icon-btn" id="back" aria-label="Tillbaka">←</button>
     <h1>${title}</h1>
-    <div class="topbar-extra">${extra}</div>
+    <div class="topbar-extra">${extra}${soundBtn()}</div>
   </header>`;
 }
 
@@ -90,6 +155,7 @@ function showHome() {
     </button>`).join('');
   render(`
     <main class="home">
+      <div class="home-sound">${soundBtn()}</div>
       <div class="logo">
         <div class="logo-clock" id="logo-clock"></div>
         <h1>Klockkoll</h1>
@@ -227,6 +293,7 @@ function startPass(level) {
 // Kör en serie uppgifter. Används av pass, starttest och Min dag.
 function runSession({ tasks, level, title, onDone }) {
   let i = 0;
+  streak = 0;
   const results = [];
   const next = () => {
     if (i >= tasks.length) { onDone(results); return; }
@@ -269,7 +336,8 @@ function showTask(task, idx, total, title, level, placement, answer, quit) {
     <header class="topbar task-top">
       <button class="icon-btn" id="quit" aria-label="Avsluta">✕</button>
       <div class="pbar">${progress}</div>
-      <button class="icon-btn" id="say" aria-label="Läs upp">🔊</button>
+      <button class="icon-btn say-btn" id="say" aria-label="Läs upp frågan igen">🗣️</button>
+      ${soundBtn()}
     </header>
     <main class="task task-${task.type}">
       <div class="task-visual">${visual}</div>
@@ -328,23 +396,29 @@ function showTask(task, idx, total, title, level, placement, answer, quit) {
     if (placement) {
       fb.hidden = false;
       fb.className = 'feedback neutral';
-      fb.innerHTML = `<p class="fb-title">${correct ? 'Bra! 👍' : 'Den här ska vi öva på! 💪'}</p>`;
+      fb.innerHTML = `<p class="fb-title">${correct ? phrase('placeRight') : phrase('placeWrong')}</p>`;
       later(() => answer(correct), 1100);
       return;
     }
 
     if (correct) {
-      const praise = pick(['Rätt! 🎉', 'Snyggt! ⭐', 'Precis! 🙌', 'Jättebra! 🌟', 'Ja! 🎈']);
+      streak++;
+      let praise;
+      if (PHRASES.streak[streak]) praise = phrase('streak' + streak, PHRASES.streak[streak]);
+      else if (task.type === 'set' && Math.random() < 0.25) praise = phrase('rightSet');
+      else if (task.kind === 'read' && Math.random() < 0.2) praise = phrase('rightRead');
+      else praise = phrase('right');
       fb.hidden = false;
       fb.className = 'feedback good';
       const said = task.h !== undefined ? capitalize(timePhrase(task.h, task.m)) + '.'
         : task.target ? capitalize(timePhrase(task.target.h, task.target.m)) + '.' : '';
       fb.innerHTML = `<p class="fb-title">${praise}</p>${said ? `<p>${esc(said)}</p>` : ''}
         <button class="btn primary" id="next">Nästa →</button>`;
-      if (settings.autoSpeak) speak(praise.replace(/[^\p{L}\s!]/gu, '') + ' ' + said);
+      if (settings.autoSpeak) speak(speakable(praise) + ' ' + said);
       on('#next', 'click', () => answer(true));
       later(() => { if ($('#next')) $('#next').focus(); }, 50);
     } else {
+      streak = 0;
       if (task.type === 'set' && clock) {
         later(() => clock.setTime(task.target.h, task.target.m, true), 400);
       }
@@ -353,7 +427,7 @@ function showTask(task, idx, total, title, level, placement, answer, quit) {
       }
       fb.hidden = false;
       fb.className = 'feedback try';
-      fb.innerHTML = `<p class="fb-title">Nästan! Så här är det:</p><p>${esc(task.explain)}</p>
+      fb.innerHTML = `<p class="fb-title">${phrase('wrong')}</p><p>${esc(task.explain)}</p>
         <button class="btn primary" id="next">Jag förstår →</button>`;
       if (settings.autoSpeak) speak(task.explain);
       on('#next', 'click', () => answer(false));
@@ -383,7 +457,7 @@ function showResult(results, level) {
   saveDb();
 
   const starHtml = [1, 2, 3].map(i => `<span class="big-star${i <= stars ? ' on' : ''}" style="animation-delay:${i * 0.25}s">★</span>`).join('');
-  const msg = stars === 3 ? 'Superbra!' : stars === 2 ? 'Bra jobbat!' : 'Bra kämpat – övning ger färdighet!';
+  const msg = phrase('result' + stars);
   render(`
     <main class="page result">
       <h1>${msg}</h1>
@@ -487,7 +561,7 @@ function showExplore(p) {
           <button class="btn" data-step="60">+1 tim</button>
         </div>
         <div class="row wrap">
-          <button class="btn primary" id="say">🔊 Läs upp</button>
+          <button class="btn primary say-btn" id="say">🗣️ Läs upp</button>
           <button class="btn" id="random">🎲 Slumpa</button>
           <button class="btn" id="now">🕒 Nu</button>
         </div>
@@ -635,7 +709,7 @@ function showMatch() {
         <div class="match-col">${textCol.map(c => `<button class="match-card text-card" data-i="${c.i}">${esc(label(c.t))}</button>`).join('')}</div>
       </div>
       <div id="match-done" hidden class="center">
-        <p class="fb-title">Alla par hittade! 🎉</p>
+        <p class="fb-title" id="match-title"></p>
         <div class="row"><button class="btn" id="m-again">Spela igen</button><button class="btn primary" id="m-back">Klar</button></div>
       </div>
     </main>`);
@@ -653,7 +727,10 @@ function showMatch() {
       speak(sentence(t.h, t.m));
       found++;
       if (found === times.length) {
+        const done = phrase('matchDone');
+        $('#match-title').textContent = done;
         $('#match-done').hidden = false;
+        speak(speakable(done));
         if (misses <= 1) { p.stars += 1; saveDb(); }
         confetti();
       }
@@ -732,7 +809,8 @@ function showParent(tab = 'overview') {
       <button class="btn" id="day-add">＋ Lägg till händelse</button></section>`;
   } else {
     body = `<section class="panel settings">
-      <label class="switch"><input type="checkbox" id="s-speak" ${s.autoSpeak ? 'checked' : ''}> <span>Läs upp frågor och svar automatiskt</span></label>
+      <label class="switch"><input type="checkbox" id="s-sound" ${s.sound ? 'checked' : ''}> <span>Ljud på (samma som 🔊/🔇-knappen)</span></label>
+      <label class="switch"><input type="checkbox" id="s-speak" ${s.autoSpeak ? 'checked' : ''}> <span>Läs upp frågor och svar automatiskt (annars bara när man trycker 🗣️)</span></label>
       <label class="switch"><input type="checkbox" id="s-hints" ${s.hints ? 'checked' : ''}> <span>Visa "Tips till vuxna" vid varje uppgift</span></label>
       <div class="field">Hjälpzoner på klockan (över/i, minutsiffror)
         <select id="s-zones">
@@ -793,6 +871,7 @@ function showParent(tab = 'overview') {
   });
 
   // Inställningar
+  on('#s-sound', 'change', e => setSound(e.target.checked));
   on('#s-speak', 'change', e => { s.autoSpeak = e.target.checked; saveDb(); });
   on('#s-hints', 'change', e => { s.hints = e.target.checked; saveDb(); });
   on('#s-zones', 'change', e => { s.zones = e.target.value; saveDb(); });
@@ -801,6 +880,7 @@ function showParent(tab = 'overview') {
 
 // --- Start ---
 loadDb();
+document.body.classList.toggle('muted', !db.settings.sound);
 showHome();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

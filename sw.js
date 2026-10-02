@@ -1,6 +1,6 @@
 // Service worker: gör att appen fungerar utan internet.
 // Höj versionen när filer ändras så att telefonerna hämtar det nya.
-const VERSION = 'klockkoll-v1';
+const VERSION = 'klockkoll-v2';
 const FILES = [
   './', 'index.html', 'style.css', 'manifest.json',
   'js/timeText.js', 'js/clock.js', 'js/storage.js', 'js/speech.js', 'js/levels.js', 'js/rewards.js', 'js/app.js',
