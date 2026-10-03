@@ -2,6 +2,7 @@
 
 const app = document.getElementById('app');
 let clocks = [];
+let widgets = []; // hundrarutor, tallinjer m.m. (allt med destroy())
 let timers = [];
 let profile = null;
 
@@ -15,6 +16,8 @@ function esc(s) {
 function cleanup() {
   clocks.forEach(c => c.destroy());
   clocks = [];
+  widgets.forEach(w => w.destroy());
+  widgets = [];
   timers.forEach(clearTimeout);
   timers = [];
   stopSpeaking();
@@ -37,6 +40,8 @@ function mountClock(sel, opts) {
   clocks.push(c);
   return c;
 }
+
+function mount(w) { widgets.push(w); return w; }
 
 function miniClockSvg(h, m) {
   // Enkel statisk klocka för kort och listor.
@@ -151,7 +156,7 @@ function showHome() {
     <button class="profile-card" data-id="${p.id}">
       <span class="avatar">${p.avatar}</span>
       <span class="pname">${esc(p.name)}</span>
-      <span class="pmeta">Nivå ${p.current} · ⭐ ${p.stars} · ${p.animals.length} djur</span>
+      <span class="pmeta">🕐 ${p.current} · ➕ ${p.math.current} · ⭐ ${p.stars}</span>
     </button>`).join('');
   render(`
     <main class="home">
@@ -159,7 +164,7 @@ function showHome() {
       <div class="logo">
         <div class="logo-clock" id="logo-clock"></div>
         <h1>Klockkoll</h1>
-        <p class="tagline">Lär dig klockan – steg för steg</p>
+        <p class="tagline">Klockan, plus och minus – steg för steg</p>
       </div>
       <h2 class="center">Vem ska öva?</h2>
       <div class="profiles">${cards}
@@ -174,7 +179,7 @@ function showHome() {
   const now = new Date();
   logo.setTime(now.getHours(), now.getMinutes());
   app.querySelectorAll('.profile-card[data-id]').forEach(b =>
-    b.addEventListener('click', () => { profile = getProfile(b.dataset.id); showHub(); }));
+    b.addEventListener('click', () => { profile = getProfile(b.dataset.id); showSubjects(); }));
   on('#add-profile', 'click', showNewProfile);
   on('#explore-free', 'click', () => showExplore(null));
   holdButton($('#parent-btn'), showParent);
@@ -206,7 +211,7 @@ function showNewProfile() {
       <div class="field">Välj en figur
         <div class="avatar-grid">${AVATARS.map((a, i) => `<button class="avatar-opt${i === 0 ? ' sel' : ''}" data-a="${a}">${a}</button>`).join('')}</div>
       </div>
-      <div class="field">Var ska vi börja?
+      <div class="field">Klockan: var ska vi börja?
         <label class="radio"><input type="radio" name="start" value="test" checked> <span><b>Gör ett kort starttest</b><br><small>Appen tar reda på vilken nivå som passar.</small></span></label>
         <label class="radio"><input type="radio" name="start" value="pick"> <span><b>Välj nivå själv</b></span></label>
         <select id="start-level" disabled>${levelOpts}</select>
@@ -228,8 +233,8 @@ function showNewProfile() {
     const mode = app.querySelector('input[name=start]:checked').value;
     const lv = mode === 'pick' ? +$('#start-level').value : 1;
     profile = newProfile(name, avatar, lv);
-    if (mode === 'test') { profile.placed = false; saveDb(); showPlacement(); }
-    else showHub();
+    if (mode === 'test') { profile.placed = false; saveDb(); }
+    showSubjects();
   });
 }
 
@@ -269,7 +274,7 @@ function showHub() {
         <button class="menu-btn" id="m-zoo"><span>🦁</span>Djurpark<small>${p.animals.length} djur</small></button>
       </div>
     </main>`);
-  bindBack(showHome);
+  bindBack(showSubjects);
   on('#go', 'click', () => startPass(p.current));
   app.querySelectorAll('.level-chip:not(.locked)').forEach(b => b.addEventListener('click', () => {
     p.current = +b.dataset.l; saveDb(); showHub();
@@ -277,7 +282,7 @@ function showHub() {
   on('#m-explore', 'click', () => showExplore(p));
   on('#m-day', 'click', showDay);
   on('#m-match', 'click', showMatch);
-  on('#m-zoo', 'click', showZoo);
+  on('#m-zoo', 'click', () => showZoo(showHub));
 }
 
 // --- Övningspass ---
@@ -445,19 +450,23 @@ function showTask(task, idx, total, title, level, placement, answer, quit) {
 }
 
 // --- Resultat ---
-function showResult(results, level) {
+// o (valfritt, för matten): { track, max, levelName, again, done, phrases }
+function showResult(results, level, o = {}) {
   const p = profile;
+  const track = o.track || p;
+  const levelName = o.levelName || (id => levelById(id).name);
   const right = results.filter(r => r.correct).length;
   const stars = starsFor(right, results.length);
   p.stars += stars;
   p.passes++;
-  const unlocked = level === p.unlocked && checkUnlock(p);
+  const unlocked = level === track.unlocked && checkUnlock(track, o.max || MAX_LEVEL);
   const animal = newAnimal(p, false);
   const gold = unlocked ? newAnimal(p, true) : null;
   saveDb();
 
   const starHtml = [1, 2, 3].map(i => `<span class="big-star${i <= stars ? ' on' : ''}" style="animation-delay:${i * 0.25}s">★</span>`).join('');
-  const msg = phrase('result' + stars);
+  const msg = o.phrases && o.phrases['result' + stars]
+    ? phrase('mresult' + stars, o.phrases['result' + stars]) : phrase('result' + stars);
   render(`
     <main class="page result">
       <h1>${msg}</h1>
@@ -470,7 +479,7 @@ function showResult(results, level) {
       </div>
       ${unlocked ? `<div class="unlock">
         <p class="unlock-title">🎉 Ny nivå upplåst! 🎉</p>
-        <p>Nivå ${p.unlocked}: ${levelById(p.unlocked).name}</p>
+        <p>Nivå ${track.unlocked}: ${levelName(track.unlocked)}</p>
         <div class="animal-reveal gold">${gold.e}</div>
         <p class="animal-name">Ett guld-djur: ${esc(gold.n)}!</p></div>` : ''}
       <div class="row">
@@ -480,8 +489,8 @@ function showResult(results, level) {
     </main>`);
   confetti();
   if (db.settings.autoSpeak) speak(`${msg} Du fick ${withArticle(animal.n)}!${unlocked ? ' Och du har låst upp en ny nivå!' : ''}`);
-  on('#again', 'click', () => startPass(p.current));
-  on('#home', 'click', showHub);
+  on('#again', 'click', o.again || (() => startPass(p.current)));
+  on('#home', 'click', o.done || showHub);
 }
 
 // --- Starttest ---
@@ -755,7 +764,7 @@ function showMatch() {
 }
 
 // --- Djurpark ---
-function showZoo() {
+function showZoo(back = showHub) {
   const p = profile;
   const grid = p.animals.map(a => `<div class="zoo-animal${a.gold ? ' gold' : ''}" title="${esc(a.n)}"><span>${a.e}</span><small>${esc(a.n)}</small></div>`).join('');
   render(`
@@ -764,7 +773,7 @@ function showZoo() {
       <p class="center">${p.animals.length ? `Du har ${p.animals.length} djur! Guld-djuren fick du när du klarade en ny nivå.` : 'Här hamnar djuren du vinner när du övar. Kör ett pass!'}</p>
       <div class="zoo">${grid}</div>
     </main>`);
-  bindBack(showHub);
+  bindBack(back);
   app.querySelectorAll('.zoo-animal').forEach(el => el.addEventListener('click', () => speak(el.title)));
 }
 
@@ -785,13 +794,17 @@ function showParent(tab = 'overview') {
       const opts = LEVELS.map(l => `<option value="${l.id}" ${l.id === p.unlocked ? 'selected' : ''}>${l.id}. ${l.name}</option>`).join('');
       return `<section class="panel">
         <h3>${p.avatar} ${esc(p.name)}</h3>
+        <h4>🕐 Klockan</h4>
         <p>Nivå ${p.current} (upplåst till ${p.unlocked}) · ${p.passes} pass · ⭐ ${p.stars} · ${p.animals.length} djur</p>
         ${lvRows ? `<table class="stats"><thead><tr><th>Nivå</th><th>Rätt</th><th></th><th></th></tr></thead><tbody>${lvRows}</tbody></table>` : '<p class="muted">Inga övningar ännu.</p>'}
         ${hard ? `<p><b>Svårast just nu:</b></p><ul>${hard}</ul>` : ''}
         <div class="row wrap">
           <label>Högsta nivå <select data-unlock="${p.id}">${opts}</select></label>
-          <button class="btn" data-rename="${p.id}">Byt namn</button>
           <button class="btn" data-retest="${p.id}">Gör om starttest</button>
+        </div>
+        ${mathParentHtml(p)}
+        <div class="row wrap">
+          <button class="btn" data-rename="${p.id}">Byt namn</button>
           <button class="btn danger" data-del="${p.id}">Ta bort</button>
         </div></section>`;
     }).join('') : '<p class="muted">Inga barn tillagda ännu.</p>';
@@ -812,6 +825,11 @@ function showParent(tab = 'overview') {
       <label class="switch"><input type="checkbox" id="s-sound" ${s.sound ? 'checked' : ''}> <span>Ljud på (samma som 🔊/🔇-knappen)</span></label>
       <label class="switch"><input type="checkbox" id="s-speak" ${s.autoSpeak ? 'checked' : ''}> <span>Läs upp frågor och svar automatiskt (annars bara när man trycker 🗣️)</span></label>
       <label class="switch"><input type="checkbox" id="s-hints" ${s.hints ? 'checked' : ''}> <span>Visa "Tips till vuxna" vid varje uppgift</span></label>
+      <div class="field">Hundrarutan i matten
+        <select id="s-grid">
+          <option value="1-100" ${s.mathGrid !== '0-99' ? 'selected' : ''}>1–100 (vanligast i skolan)</option>
+          <option value="0-99" ${s.mathGrid === '0-99' ? 'selected' : ''}>0–99</option>
+        </select></div>
       <div class="field">Hjälpzoner på klockan (över/i, minutsiffror)
         <select id="s-zones">
           <option value="auto" ${s.zones === 'auto' ? 'selected' : ''}>Automatiskt efter nivå (rekommenderas)</option>
@@ -847,6 +865,17 @@ function showParent(tab = 'overview') {
     profile = getProfile(b.dataset.retest);
     showPlacement();
   }));
+  app.querySelectorAll('[data-munlock]').forEach(sel => sel.addEventListener('change', () => {
+    const m = getProfile(sel.dataset.munlock).math;
+    m.unlocked = +sel.value;
+    m.current = m.unlocked;
+    m.placed = true;
+    saveDb(); showParent('overview');
+  }));
+  app.querySelectorAll('[data-mretest]').forEach(b => b.addEventListener('click', () => {
+    profile = getProfile(b.dataset.mretest);
+    showMathStart();
+  }));
   app.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
     const p = getProfile(b.dataset.del);
     if (confirm(`Ta bort ${p.name} och alla framsteg? Det går inte att ångra.`)) { deleteProfile(p.id); showParent('overview'); }
@@ -875,7 +904,30 @@ function showParent(tab = 'overview') {
   on('#s-speak', 'change', e => { s.autoSpeak = e.target.checked; saveDb(); });
   on('#s-hints', 'change', e => { s.hints = e.target.checked; saveDb(); });
   on('#s-zones', 'change', e => { s.zones = e.target.value; saveDb(); });
+  on('#s-grid', 'change', e => { s.mathGrid = e.target.value; saveDb(); });
   on('#s-testvoice', 'click', () => speak('Hej! Klockan är fem i halv tre.'));
+}
+
+// Mattens del av föräldraöversikten.
+function mathParentHtml(p) {
+  const m = p.math;
+  const lvRows = MATH_LEVELS.filter(l => m.stats[l.id]).map(l => {
+    const st = m.stats[l.id];
+    const pct = Math.round(100 * st.right / st.total);
+    return `<tr><td>${l.id}. ${l.name}</td><td>${st.right}/${st.total}</td><td><div class="bar"><i style="width:${pct}%"></i></div></td><td>${pct}%</td></tr>`;
+  }).join('');
+  const hard = Object.entries(m.cats).filter(([, c]) => c.total >= 3 && c.right < c.total)
+    .sort((a, b) => a[1].right / a[1].total - b[1].right / b[1].total).slice(0, 4)
+    .map(([k, c]) => `<li>${esc(MATH_CATS[k] || k)} <span class="muted">(${c.right}/${c.total} rätt)</span></li>`).join('');
+  const opts = MATH_LEVELS.map(l => `<option value="${l.id}" ${l.id === m.unlocked ? 'selected' : ''}>${l.id}. ${l.name}</option>`).join('');
+  return `<h4>➕ Plus och minus</h4>
+    <p>${m.placed ? `Nivå ${m.current} (upplåst till ${m.unlocked})` : 'Har inte börjat ännu.'}</p>
+    ${lvRows ? `<table class="stats"><thead><tr><th>Nivå</th><th>Rätt</th><th></th><th></th></tr></thead><tbody>${lvRows}</tbody></table>` : ''}
+    ${hard ? `<p><b>Svårast just nu:</b></p><ul>${hard}</ul>` : ''}
+    <div class="row wrap">
+      <label>Högsta nivå <select data-munlock="${p.id}">${opts}</select></label>
+      <button class="btn" data-mretest="${p.id}">Gör om starttest</button>
+    </div>`;
 }
 
 // --- Start ---

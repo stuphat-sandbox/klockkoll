@@ -97,6 +97,10 @@ Kvar:
 - **Publicering på GitHub Pages.** Kräver `gh auth login` och ett repo.
 - Testa uppläsningen på barnens riktiga enheter, eftersom tillgången på svensk röst varierar.
 
+## Matte
+
+Plus och minus finns nu som en egen del i appen. Se `MATTE-PLAN.md`.
+
 ## Idéer till senare
 - Synk av framsteg mellan enheter.
 - "Min dag" per barn.

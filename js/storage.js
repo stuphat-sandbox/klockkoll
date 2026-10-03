@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS = {
   autoSpeak: true,   // läs upp frågan automatiskt
   hints: true,       // visa tipsknapp för vuxna
   zones: 'auto',     // 'auto' | 'on' | 'off'
+  mathGrid: '1-100', // hundrarutan: '1-100' | '0-99'
 };
 
 let db = null;
@@ -32,6 +33,7 @@ function loadDb() {
       db.settings = { ...DEFAULT_SETTINGS, ...(db.settings || {}) };
       db.profiles = db.profiles || [];
       db.day = db.day || DEFAULT_DAY.map(d => ({ ...d }));
+      db.profiles.forEach(ensureMath);
       return db;
     }
   } catch (e) { /* trasig eller blockerad lagring – börja om */ }
@@ -41,6 +43,12 @@ function loadDb() {
 
 function saveDb() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { /* ignoreras */ }
+}
+
+// Framsteg i matte (plus och minus) – samma upplägg som klockans nivåer.
+function ensureMath(p) {
+  if (!p.math) p.math = { unlocked: 1, current: 1, placed: false, recent: {}, stats: {}, mistakes: {}, cats: {} };
+  return p;
 }
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
@@ -61,6 +69,7 @@ function newProfile(name, avatar, level) {
     animals: [],         // [{ e, n, gold }]
     created: Date.now(),
   };
+  ensureMath(p);
   db.profiles.push(p);
   saveDb();
   return p;
