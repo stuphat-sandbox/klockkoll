@@ -76,13 +76,16 @@ Mattekoll följer samma stack som Klockkoll.
 
 | Fil | Innehåll |
 |---|---|
-| `js/math/levels.js` | Nivåer, uppgiftsgenerering och felsvar som bygger på typiska misstag |
-| `js/math/grid.js` | Hundrarutan i SVG med tryck, drag och hopp-animation |
-| `js/math/numberline.js` | Den tomma tallinjen med hoppbågar |
-| `js/math/blocks.js` | Tiostavar och entalskuber |
-| `js/math/numberText.js` | Tal till svensk text för uppläsning |
-| `js/app.js` | Ny meny (Klocka / Matte) och egna framsteg per ämne i `storage.js` |
-| `sw.js` | Höj VERSION och lägg till de nya filerna |
+| `js/math/mathLevels.js` | Nivåer, uppgiftsgenerering, strategier (hopp) och felsvar som bygger på typiska misstag |
+| `js/math/grid.js` | Hundrarutan med tryck och hopp-animation |
+| `js/math/numberline.js` | Den tomma tallinjen (SVG) med hoppbågar |
+| `js/math/blocks.js` | Tiorutor, tiostavar och entalskuber |
+| `js/math/mathApp.js` | Mattens skärmar: starttest, nav, pass, Hundrarutan, Bygg talet och Vilken väg? |
+| `js/app.js` | Ny skärm "Vad ska vi öva?", gemensam resultatskärm och matte i vuxenläget |
+| `js/storage.js` | `profile.math` med egna nivåer och framsteg (gamla profiler får det automatiskt) |
+| `sw.js` | VERSION höjd till v3 och de nya filerna tillagda |
+
+Uppläsningen av tal sköts av talsyntesen ("38 plus 25"), så någon separat `numberText.js` behövs inte.
 
 ## Byggordning
 
@@ -92,6 +95,12 @@ Mattekoll följer samma stack som Klockkoll.
 4. Starttestet, som börjar på nivå 2 och ska hitta luckor i grunden.
 5. Bygg talet, Saknat tal och Vilken väg?
 6. Nivåerna 1–3 och 8, samt statistik i vuxenläget.
+
+## Status (2026-10-03)
+
+Version 1 är byggd: alla 8 nivåer, starttest, Hundrarutan, Bygg talet, Vilken väg?, statistik per uppgiftstyp i vuxenläget och val av 1–100 eller 0–99. Testad i mobil- och datorstorlek. Klockdelen fungerar som förut.
+
+Standardval tills vi vet mer: hundraruta 1–100, både plus och minus, lästal med vardagsteman (buss, lastbil, pengar, kalas).
 
 ## Öppna frågor
 

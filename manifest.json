@@ -1,7 +1,7 @@
 {
   "name": "Klockkoll – lär dig klockan",
   "short_name": "Klockkoll",
-  "description": "Lär dig klockan steg för steg.",
+  "description": "Lär dig klockan, plus och minus steg för steg.",
   "lang": "sv",
   "start_url": "./",
   "scope": "./",

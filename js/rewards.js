@@ -58,9 +58,10 @@ function levelProgress(profile, lv) {
 }
 
 // Kolla om nästa nivå ska låsas upp (efter ett avslutat pass).
-function checkUnlock(profile) {
+// profile kan också vara mattens framsteg (profile.math), med max = MATH_MAX.
+function checkUnlock(profile, max = MAX_LEVEL) {
   const lv = profile.unlocked;
-  if (lv >= MAX_LEVEL) return false;
+  if (lv >= max) return false;
   const { right } = levelProgress(profile, lv);
   if (right >= UNLOCK_NEED) {
     profile.unlocked = lv + 1;
